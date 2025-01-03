@@ -8,47 +8,39 @@ const connection = require("./database/db");
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-// Enable CORS before other middleware
-app.use(cors({
-    origin: function(origin, callback) {
-        const allowedOrigins = ['https://fe-b4blog.vercel.app', 'http://localhost:3000'];
-        if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-            callback(null, true);
-        } else {
-            callback(new Error('Not allowed by CORS'));
-        }
-    },
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true
-}));
+// CORS middleware configuration
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', 'https://fe-b4blog.vercel.app');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+    res.header('Access-Control-Allow-Credentials', true);
+    
+    // Handle preflight
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end();
+    }
+    next();
+});
 
-// Pre-flight requests
-app.options('*', cors());
-
-// File upload middleware
-app.use(fileUpload({
-    useTempFiles: true,
-    tempFileDir: '/tmp/',
-    createParentPath: true
-}));
-
-// Parse JSON bodies
+// Basic middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// File upload configuration
+app.use(fileUpload({
+    useTempFiles: true,
+    tempFileDir: '/tmp/'
+}));
 
 // Routes
 app.use('/', route);
 
-// Error handler
+// Error handling
 app.use((err, req, res, next) => {
-    res.status(err.status || 500).json({
-        message: err.message,
-        error: process.env.NODE_ENV === 'development' ? err : {}
-    });
+    console.error(err.stack);
+    res.status(500).json({ error: err.message });
 });
 
-// Database connection
+// Start server
 connection();
-
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

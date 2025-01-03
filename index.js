@@ -5,7 +5,10 @@ const route = require("./routes/routes")
 const connection = require("./database/db")
 const cors = require("cors");
 const fileUpload = require("express-fileupload");
-app.use(cors());
+app.use(cors({
+    origin: ["https://fe-b4blog.vercel.app"],
+    credentials: true,
+}));
 
 
 

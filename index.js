@@ -1,61 +1,54 @@
 const express = require("express");
-const mongoose = require("mongoose");
-const app = express();
-const route = require("./routes/routes")
-const connection = require("./database/db")
 const cors = require("cors");
+const mongoose = require("mongoose");
 const fileUpload = require("express-fileupload");
+const route = require("./routes/routes");
+const connection = require("./database/db");
 
-// CORS configuration
-const corsOptions = {
-    origin: ['https://fe-b4blog.vercel.app', 'http://localhost:3000'],
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-    exposedHeaders: ['Content-Range', 'X-Content-Range'],
-    credentials: true,
-    maxAge: 86400
-};
-
-app.use(cors(corsOptions));
-
-// Handle preflight requests
-app.options('*', cors(corsOptions));
-
+const app = express();
 const PORT = process.env.PORT || 8080;
 
-// File upload configuration with CORS
-app.use(fileUpload({
-    useTempFiles: true,
-    createParentPath: true,
-    limits: { fileSize: 50 * 1024 * 1024 }, // 50MB max file size
+// Enable CORS before other middleware
+app.use(cors({
+    origin: function(origin, callback) {
+        const allowedOrigins = ['https://fe-b4blog.vercel.app', 'http://localhost:3000'];
+        if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true
 }));
 
-// Body parser middleware
-app.use(express.urlencoded({ extended: true }));
+// Pre-flight requests
+app.options('*', cors());
+
+// File upload middleware
+app.use(fileUpload({
+    useTempFiles: true,
+    tempFileDir: '/tmp/',
+    createParentPath: true
+}));
+
+// Parse JSON bodies
 app.use(express.json());
-
-// Global CORS headers middleware
-app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', req.headers.origin);
-    res.header('Access-Control-Allow-Credentials', true);
-    res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Origin,X-Requested-With,Content-Type,Accept,Authorization');
-    next();
-});
-
-// Error handling middleware
-app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).json({
-        message: 'Something went wrong!',
-        error: process.env.NODE_ENV === 'development' ? err.message : {}
-    });
-});
+app.use(express.urlencoded({ extended: true }));
 
 // Routes
-app.use("/", route);
+app.use('/', route);
+
+// Error handler
+app.use((err, req, res, next) => {
+    res.status(err.status || 500).json({
+        message: err.message,
+        error: process.env.NODE_ENV === 'development' ? err : {}
+    });
+});
 
 // Database connection
 connection();
 
-app.listen(PORT, () => console.log("server started on", PORT));
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
